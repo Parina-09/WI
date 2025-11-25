@@ -1,0 +1,80 @@
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+import re
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import KMeans
+import seaborn as sns
+import matplotlib.pyplot as plt
+base_url = "https://stackoverflow.com/questions/tagged/python?tab=newest&page={}"
+questions = []
+for page in range(1, 6):  # first 5 pages
+    r = requests.get(base_url.format(page))
+    soup = BeautifulSoup(r.text, 'html.parser')
+    
+    for q in soup.select(".s-post-summary"):
+        title = q.select_one(".s-post-summary--content-title a").text
+        tags = [tag.text for tag in q.select(".post-tag")]
+        time = q.select_one("span.relativetime")['title'] if q.select_one("span.relativetime") else None
+        
+        questions.append({'title': title, 'tags': tags, 'timestamp': time})
+df = pd.DataFrame(questions)
+print("Sample scraped questions:")
+print(df.head())
+ 
+def clean_text(text):
+    text = text.lower()
+    text = re.sub(r'[^a-z\s]', '', text)
+    return text
+df['cleaned_title'] = df['title'].apply(clean_text)
+print("Preprocessed question titles:")
+print(df[['title','cleaned_title']].head())
+
+ 
+documents = df['cleaned_title'].tolist()
+vectorizer = TfidfVectorizer()
+X = vectorizer.fit_transform(documents)
+tfidf_df = pd.DataFrame(X.toarray(), columns=vectorizer.get_feature_names_out())
+print("TF-IDF Matrix (first 5 rows):")
+print(tfidf_df.head())
+print("\nFeature Names:")
+print(vectorizer.get_feature_names_out())
+ 
+kmeans = KMeans(n_clusters=5, random_state=42, n_init=10)
+df['cluster'] = kmeans.fit_predict(X)
+print("Cluster assignment sample:")
+print(df[['cleaned_title','cluster']].head())
+
+order_centroids = kmeans.cluster_centers_.argsort()[:, ::-1]
+terms = tfidf_df.columns  
+
+for i in range(5):
+    top_terms = [terms[ind] for ind in order_centroids[i, :10]]
+    sample_titles = df[df['cluster'] == i]['cleaned_title'].head(3).tolist()
+    print(f"Cluster {i} top words: {top_terms}")
+    print("Sample questions:")
+    for t in sample_titles:
+        print(f" - {t}")
+    print()
+ 
+all_tags = [tag for sublist in df['tags'] for tag in sublist]
+tag_series = pd.Series(all_tags)
+top_tags = tag_series.value_counts().head(10)
+sns.barplot(x=top_tags.values, y=top_tags.index, palette='Set2')
+plt.title("Top 10 StackOverflow Tags")
+plt.xlabel("Frequency")
+plt.ylabel("Tags")
+plt.show()
+print("Top 10 tags with frequency:")
+print(top_tags)
+ 
+df['timestamp'] = pd.to_datetime(df['timestamp'])
+df['date'] = df['timestamp'].dt.date
+trend = df.groupby('date').size()
+sns.lineplot(x=trend.index, y=trend.values)
+plt.title("Questions Trend Over Time")
+plt.xlabel("Date")
+plt.ylabel("Number of Questions")
+plt.xticks(rotation=45)
+plt.show()
+print("Trend of questions over time displayed.")
