@@ -1,0 +1,71 @@
+import requests
+from bs4 import BeautifulSoup
+import pandas as pd
+import re
+from textblob import TextBlob
+import seaborn as sns
+import matplotlib.pyplot as plt
+base_url = "http://books.toscrape.com/catalogue/page-{}.html"
+books = []
+for page in range(1, 6):  
+    url = base_url.format(page)
+    r = requests.get(url)
+    soup = BeautifulSoup(r.text, 'html.parser')   
+    for book in soup.select("article.product_pod"):
+        title = book.h3.a['title']
+        link = "http://books.toscrape.com/catalogue/" + book.h3.a['href']       
+        book_page = requests.get(link)
+        book_soup = BeautifulSoup(book_page.text, 'html.parser')
+        try:
+            category = book_soup.find('ul', class_='breadcrumb').find_all('a')[2].text
+        except:
+            category = 'Unknown'
+        try:
+            description = book_soup.find('meta', attrs={'name':'description'})['content'].strip()
+        except:
+            description = ''       
+        books.append({'title': title, 'category': category, 'description': description})
+df = pd.DataFrame(books)
+print("Sample scraped data:")
+print(df.head())
+ 
+import nltk
+from nltk.corpus import stopwords
+nltk.download('stopwords')
+stop_words = set(stopwords.words('english'))
+def clean_text(text):
+    text = text.lower()
+    text = re.sub(r'[^a-z\s]', '', text)  # remove punctuation/numbers
+    text = ' '.join([word for word in text.split() if word not in stop_words])
+    return text
+df['cleaned_description'] = df['description'].apply(clean_text)
+print("Preprocessed book descriptions:")
+print(df[['description','cleaned_description']].head())
+ 
+def get_sentiment(text):
+    analysis = TextBlob(text)
+    if analysis.sentiment.polarity > 0:
+        return 'Positive'
+    elif analysis.sentiment.polarity < 0:
+        return 'Negative'
+    else:
+        return 'Neutral'
+df['sentiment'] = df['cleaned_description'].apply(get_sentiment)
+print("Sample sentiment results:")
+print(df[['title','cleaned_description','sentiment']].head())
+ 
+sentiment_counts = df['sentiment'].value_counts()
+sns.barplot(x=sentiment_counts.index, y=sentiment_counts.values, palette='Set2')
+plt.title("Sentiment Distribution")
+plt.ylabel("Number of Books")
+plt.show()
+print("Sentiment counts:")
+print(sentiment_counts)
+
+category_sentiment = df.groupby(['category', 'sentiment']).size().unstack(fill_value=0)
+category_sentiment.plot(kind='bar', stacked=True, figsize=(12,6), colormap='Set2')
+plt.title("Sentiment Distribution Across Categories")
+plt.ylabel("Number of Books")
+plt.show()
+print("Sentiment by category:")
+print(category_sentiment.head(10))
