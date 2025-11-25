@@ -1,0 +1,75 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+
+df = pd.read_csv("OnlineRetail.csv", encoding="ISO-8859-1")
+df.head()
+
+ 
+
+df.shape
+
+ 
+
+df.isnull().sum()
+
+ 
+
+df = df.dropna(subset=["CustomerID"])
+df.isnull().sum()
+
+ 
+df = df[(df["Quantity"] > 0) & (df["UnitPrice"] > 0)]
+print("After keeping positive Quantity & UnitPrice, Shape:", df.shape)
+
+ 
+
+rfm = df.groupby("CustomerID").agg({
+    "InvoiceNo": "count",      
+    "Quantity": "sum",      
+    "UnitPrice": "mean"        
+}).reset_index()
+
+rfm.rename(columns={"InvoiceNo": "Frequency", "Quantity": "Recency", "UnitPrice": "Monetary"}, inplace=True)
+print("RFM table created. Sample rows:")
+print(rfm.head())
+
+ 
+
+scaler = StandardScaler()
+rfm_scaled = scaler.fit_transform(rfm[["Recency", "Frequency", "Monetary"]])
+
+wcss = []
+for i in range(1, 6):
+    kmeans = KMeans(n_clusters=i, random_state=42, n_init=10)
+    kmeans.fit(rfm)
+    wcss.append(kmeans.inertia_)
+plt.plot(range(1, 6), wcss, marker="o")
+plt.xlabel("Number of clusters")
+plt.ylabel("WCSS")
+plt.title("Elbow Method")
+plt.show()
+print("Elbow plot displayed.")
+
+ 
+
+kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
+rfm["Cluster"] = kmeans.fit_predict(rfm_scaled)
+
+print("KMeans applied. Cluster counts:")
+print(rfm["Cluster"].value_counts())
+
+ 
+
+cluster_profile = rfm.groupby("Cluster").mean()
+print("Cluster profile (avg RFM values):")
+print(cluster_profile)
+
+ 
+
+sns.scatterplot(data=rfm, x="Monetary", y="Recency", hue="Cluster", palette="Set2")
+plt.title("Customer Segmentation (Seaborn)")
+plt.show()
