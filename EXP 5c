@@ -1,0 +1,89 @@
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.cluster import KMeans
+from sklearn.decomposition import LatentDirichletAllocation
+import re
+import nltk
+from nltk.corpus import stopwords
+nltk.download('stopwords')
+df = pd.read_csv("twitter_sentiment140.csv")
+print("Sample data:")
+print(df.head())
+ 
+stop_words = set(stopwords.words('english'))
+def clean_text(text):
+    text = str(text).lower()  # lowercase
+    text = re.sub(r"http\S+|www\S+|https\S+", '', text, flags=re.MULTILINE)  # remove links
+    text = re.sub(r'\@w+|\#','', text)  # remove mentions and hashtags
+    text = re.sub(r'[^A-Za-z\s]', '', text)  # remove punctuation/numbers
+    text = ' '.join([word for word in text.split() if word not in stop_words])  # remove stopwords
+    return text
+df['cleaned_sentence'] = df['sentence'].apply(clean_text)
+print("Preprocessed tweets:")
+print(df[['sentence', 'cleaned_sentence']].head())
+
+tfidf = TfidfVectorizer(max_features=1000)
+X = tfidf.fit_transform(df['cleaned_sentence'])
+print("TF-IDF feature sample:")
+print(pd.DataFrame(X.toarray(), columns=tfidf.get_feature_names_out()).head())
+ 
+kmeans = KMeans(n_clusters=5, random_state=42, n_init=10)
+df['cluster'] = kmeans.fit_predict(X)
+print("Cluster assignment sample:")
+print(df[['cleaned_sentence', 'cluster']].head())
+
+order_centroids = kmeans.cluster_centers_.argsort()[:, ::-1]
+terms = tfidf.get_feature_names_out()
+for i in range(5):
+    top_terms = [terms[ind] for ind in order_centroids[i, :10]]
+    print(f"Cluster {i} top words: {top_terms}")
+ 
+sns.countplot(x='cluster', data=df, palette='Set2')
+plt.title("Distribution of tweets per cluster")
+plt.show()
+print("Cluster distribution visualized.")
+
+lda = LatentDirichletAllocation(n_components=5, random_state=42)
+lda.fit(X)
+terms = tfidf.get_feature_names_out()
+for idx, topic in enumerate(lda.components_):
+    top_terms = [terms[i] for i in topic.argsort()[-10:][::-1]]
+    print(f"Topic {idx} top words: {top_terms}")
+ 
+topic_distribution = lda.transform(new_vec)
+print("Topic probabilities:", topic_distribution)
+print("Dominant topic:", topic_distribution.argmax())
+
+sentiment_counts = df.groupby(['cluster', 'sentiment']).size().reset_index(name='count')
+sentiment_counts['sentiment_label'] = sentiment_counts['sentiment'].map({0: 'Negative', 1: 'Positive'})
+plt.figure(figsize=(8,5))
+sns.barplot(data=sentiment_counts, x='cluster', y='count', hue='sentiment_label', palette='Set2')
+plt.title("Cluster Sentiment Distribution")
+plt.xlabel("Cluster")
+plt.ylabel("Number of Tweets")
+plt.legend(title='Sentiment')
+plt.show()
+ 
+summary = []
+for i in range(5):
+    cluster_data = df[df['cluster'] == i]
+    pos_count = cluster_data[cluster_data['sentiment'] == 1].shape[0]
+    neg_count = cluster_data[cluster_data['sentiment'] == 0].shape[0]
+    if pos_count > neg_count:
+        dominant_sentiment = "Positive"
+        action = "Promote positive experiences or highlight products"
+    elif neg_count > pos_count:
+        dominant_sentiment = "Negative"
+        action = "Address complaints, improve product/service"
+    else:
+        dominant_sentiment = "Mixed"
+        action = "Monitor feedback and engage accordingly"
+    summary.append({
+        "Cluster": i,
+        "Dominant Sentiment": dominant_sentiment,
+        "Suggested Action": action
+    })
+summary_df = pd.DataFrame(summary)
+print(summary_df)
