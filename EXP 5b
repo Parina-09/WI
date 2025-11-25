@@ -35,7 +35,7 @@ nltk.download('stopwords')
 stop_words = set(stopwords.words('english'))
 def clean_text(text):
     text = text.lower()
-    text = re.sub(r'[^a-z\s]', '', text)  # remove punctuation/numbers
+    text = re.sub(r'[^a-z\s]', '', text)  
     text = ' '.join([word for word in text.split() if word not in stop_words])
     return text
 df['cleaned_description'] = df['description'].apply(clean_text)
