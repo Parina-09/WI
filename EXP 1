@@ -1,0 +1,97 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+df = pd.read_csv('website_data.csv')
+df.head()
+ 
+df['Converted'] = (df['Conversion Rate'] > 0.6).astype(int)
+print("Created 'Converted' column. Value counts:")
+print(df['Converted'].value_counts())
+
+plt.figure(figsize=(10, 6))
+sns.histplot(df['Session Duration'], bins=50, kde=True)
+plt.title('Distribution of Session Duration (Minutes)')
+plt.xlabel('Session Duration (Minutes)')
+plt.ylabel('Number of Sessions')
+plt.show()
+ 
+plt.figure(figsize=(10, 6))
+sns.countplot(data=df, x='Traffic Source', order=df['Traffic  Source'].value_counts().index)
+plt.title('Number of Sessions by Traffic Source')
+plt.xlabel('Traffic Source')
+plt.ylabel('Number of Sessions')
+plt.show()
+ 
+source_duration = df.groupby('Traffic Source')['Session Duration'].mean().reset_index()
+plt.figure(figsize=(10, 6))
+sns.barplot(data=source_duration.sort_values(by='Session Duration', ascending=False),
+            x='Traffic Source',
+            y='Session Duration',
+            palette='Blues_d')
+plt.title('Average Session Duration by Traffic Source')
+plt.xlabel('Traffic Source')
+plt.ylabel('Average Session Duration (Minutes)')
+plt.show()
+ 
+source_conversion = df.groupby('Traffic Source')['Converted'].mean().reset_index()
+plt.figure(figsize=(10, 6))
+sns.barplot(data=source_conversion.sort_values(by='Converted', ascending=False),
+            x='Traffic Source',
+            y='Converted',
+            palette='Greens_d')
+plt.title('Conversion Rate by Traffic Source')
+plt.xlabel('Traffic Source')
+plt.ylabel('Conversion Rate (Decimal)')
+plt.show()
+ 
+source_bounce = df.groupby('Traffic Source')['Bounce Rate'].mean().reset_index()
+plt.figure(figsize=(10, 6))
+sns.barplot(data=source_bounce.sort_values(by='Bounce Rate', ascending=True),
+            x='Traffic Source',
+            y='Bounce Rate',
+            palette='Reds_d')
+plt.title('Bounce Rate by Traffic Source')
+plt.xlabel('Traffic Source')
+plt.ylabel('Bounce Rate (Decimal)')
+plt.show()
+ 
+plt.figure(figsize=(8, 6))
+sns.boxplot(data=df, x='Converted', y='Session Duration')
+plt.title('Session Duration for Converting vs. Non-Converting Users')
+plt.xlabel('Converted (0 = No, 1 = Yes)')
+plt.ylabel('Session Duration (Minutes)')
+plt.show()
+ 
+df['Avg. Time on Page'] = df['Session Duration'] / df['Page Views'].replace(0, 1)
+print(df[['Session Duration', 'Page Views', 'Avg. Time on Page']].head())
+ 
+plt.figure(figsize=(12, 7))
+sns.scatterplot(
+    data=df,
+    x='Page Views',
+    y='Session Duration',
+    hue='Converted',
+    palette={0: 'blue', 1: 'gold'},
+    alpha=0.6
+)
+plt.title('Page Views vs. Session Duration (Colored by Conversion)')
+plt.xlabel('Page Views')
+plt.ylabel('Session Duration (Minutes)')
+plt.legend(title='Converted (1=Yes)')
+plt.show()
+
+numeric_cols = [
+    'Session Duration',
+    'Page Views',
+    'Previous Visits',
+    'Converted',
+    'Bounced',
+    'Avg. Time on Page'
+]
+existing_numeric_cols = [col for col in numeric_cols if col in df.columns]
+plt.figure(figsize=(10, 7))
+corr = df[existing_numeric_cols].corr()
+sns.heatmap(corr, annot=True, cmap='coolwarm', fmt='.2f')
+plt.title('Correlation Heatmap of Web Metrics')
+plt.show()
