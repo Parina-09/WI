@@ -1,0 +1,31 @@
+def jaccard_similarity(set1,set2):
+    intersection = len(set1.intersection(set2))
+    union = len(set1.union(set2))
+    return intersection / union
+
+A = {"apple","banana","cherry"}
+B = {"banana","cherry","date", "fig"}
+
+print("Set A:",A)
+print("Set B:",B)
+similarity = jaccard_similarity(A,B)
+print(f"Jaccard Similarity between A and B:{similarity}")
+
+
+from sklearn.metrics import jaccard_score
+
+y_true = [1,1,1,0,0] #or A1
+y_pred = [0,1,1,1,1] #or B1
+
+similarity = jaccard_score(y_true,y_pred, average='binary')
+print(f"Jaccard Similarity between A and B:{similarity}")
+
+
+from nltk.metrics import jaccard_distance
+A = {"apple","banana","cherry"}
+B = {"banana","cherry","date", "fig"}
+
+distance = jaccard_distance(A,B)
+similarity = 1 - distance
+print(f"Jaccard Similarity between A and B:{similarity}")
+print(f"Jaccard Distance between A and B:{distance}")
