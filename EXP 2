@@ -1,0 +1,117 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import warnings
+warnings.filterwarnings("ignore")
+df = pd.read_csv('Marketing.csv')
+df['c_date'] = pd.to_datetime(df['c_date'])
+df['CTR (%)'] = (df['clicks'] / df['impressions']) * 100
+df['ROAS'] = (df['revenue'] / df['mark_spent'])
+df['CPC'] = df['mark_spent'] / df['clicks']  
+df['CPL'] = df['mark_spent'] / df['leads'] 
+df['CPO'] = df['mark_spent'] / df['orders']   
+df['CVR (%)'] = (df['orders'] / df['clicks'])*100 
+df.head()
+ 
+total_spent = df['mark_spent'].sum()
+total_revenue = df['revenue'].sum()
+total_impressions = df['impressions'].sum()
+total_clicks = df['clicks'].sum()
+total_leads = df['leads'].sum()
+total_orders = df['orders'].sum()
+overall_roas = total_revenue / total_spent
+overall_ctr = (total_clicks / total_impressions) * 100
+overall_cpc = total_spent / total_clicks
+overall_cpo = total_spent / total_orders
+overall_cvr = (total_orders / total_clicks) * 100
+print("--- Overall Campaign Performance ---")
+print(f"Total Marketing Spend: ${total_spent:,.2f}")
+print(f"Total Generated Revenue: ${total_revenue:,.2f}")
+print(f"Total Impressions: {total_impressions:,}")
+print(f"Total Clicks: {total_clicks:,}")
+print(f"Total Leads: {total_leads:,}")
+print(f"Total Orders: {total_orders:,}")
+print("--------------------------------------")
+print(f"Overall ROAS: {overall_roas:.2f} ")
+print(f"Overall CTR: {overall_ctr:.2f}% ")
+print(f"Overall CVR: {overall_cvr:.2f}% ")
+print(f"Overall Avg. CPC: ${overall_cpc:.2f}")
+print(f"Overall Avg. CPO: ${overall_cpo:.2f}")
+ 
+campaign_summary = df.groupby('campaign_name').agg(
+    total_spent=('mark_spent', 'sum'),
+    total_revenue=('revenue', 'sum'),
+    total_clicks=('clicks', 'sum'),
+    total_impressions=('impressions', 'sum'),
+    total_leads=('leads', 'sum'),
+    total_orders=('orders', 'sum')
+)
+campaign_summary['ROAS'] = (campaign_summary['total_revenue'] / campaign_summary['total_spent']).fillna(0)
+campaign_summary['CTR (%)'] = (campaign_summary['total_clicks'] / campaign_summary['total_impressions'] * 100).fillna(0)
+campaign_summary['CPO'] = (campaign_summary['total_spent'] / campaign_summary['total_orders']).fillna(0)
+campaign_summary = campaign_summary.sort_values(by='total_revenue', ascending=False)
+print("--- Performance by Campaign Name ---")
+print(campaign_summary.head(10))
+ 
+category_summary = df.groupby('category').agg(
+    total_spent=('mark_spent', 'sum'),
+    total_revenue=('revenue', 'sum'),
+    total_clicks=('clicks', 'sum'),
+    total_impressions=('impressions', 'sum'),
+    total_leads=('leads', 'sum'),
+    total_orders=('orders', 'sum')
+)
+category_summary['ROAS'] = (category_summary['total_revenue'] / category_summary['total_spent']).fillna(0)
+category_summary['CTR (%)'] = (category_summary['total_clicks'] / category_summary['total_impressions'] * 100).fillna(0)
+category_summary['CPO'] = (category_summary['total_spent'] / category_summary['total_orders']).fillna(0)
+category_summary['CPL'] = (category_summary['total_spent'] / category_summary['total_leads']).fillna(0)
+category_summary = category_summary.sort_values(by='ROAS', ascending=False)
+print("--- Performance by Campaign Category ---")
+print(category_summary)
+ 
+plt.figure(figsize=(10, 6))
+sns.barplot(
+    data=category_summary.reset_index(),
+    x='category',
+    y='ROAS',
+    palette='mako'
+)
+plt.title('Return on Ad Spend (ROAS) by Category', fontsize=16)
+plt.xlabel('Category')
+plt.ylabel('ROAS')
+plt.show()
+
+numeric_cols = ['impressions', 'mark_spent', 'clicks', 'leads', 'orders', 'revenue', 'CTR (%)', 'ROAS', 'CPC', 'CPO', 'CVR (%)']
+corr_matrix = df[numeric_cols].corr()
+plt.figure(figsize=(10, 8))
+sns.heatmap(corr_matrix, annot=True, fmt='.2f', cmap='coolwarm', vmin=-1, vmax=1)
+plt.title('Metric Correlation Heatmap', fontsize=16)
+plt.show()
+
+daily_summary = df.groupby('c_date').agg(
+    daily_spend=('mark_spent', 'sum'),
+    daily_revenue=('revenue', 'sum')
+).reset_index()
+plt.figure(figsize=(12, 6))
+plt.plot(daily_summary['c_date'], daily_summary['daily_spend'], label='Daily Spend', color='red', linestyle='--')
+plt.plot(daily_summary['c_date'], daily_summary['daily_revenue'], label='Daily Revenue', color='green')
+plt.title('Revenue and Spend Over Time', fontsize=16)
+plt.xlabel('Date')
+plt.ylabel('Amount ($)')
+plt.legend()
+plt.show()
+ 
+daily_conversions = df.groupby('c_date').agg(
+    daily_leads=('leads', 'sum'),
+    daily_orders=('orders', 'sum')
+).reset_index()
+plt.figure(figsize=(12, 6))
+plt.plot(daily_conversions['c_date'], daily_conversions['daily_leads'], label='Daily Leads', color='blue')
+plt.plot(daily_conversions['c_date'], daily_conversions['daily_orders'], label='Daily Orders', color='orange')
+plt.title('Leads and Orders Over Time', fontsize=16)
+plt.xlabel('Date')
+plt.ylabel('Count')
+plt.legend()
+plt.show()
+
