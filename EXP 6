@@ -1,0 +1,54 @@
+!pip install rank_bm25
+from rank_bm25 import BM25Okapi
+import networkx as nx
+import numpy as np
+import pandas as pd
+import re
+ 
+documents = [
+"Deep learning methods for natural language processing have improved search relevance.",
+"Search engines use indexing and ranking algorithms like BM25 and TF-IDF to find relevant documents.",
+"PageRank measures the importance of web pages based on their link structure.",
+"Combining relevance scores with PageRank improves search efficiency and result quality.",
+"BM25 is a probabilistic retrieval model often used in information retrieval systems."
+]
+links = {
+0: [1, 2],
+1: [2, 3],
+2: [3, 4],
+3: [1, 4],
+4: [2]
+}
+def preprocess(text):
+  text = re.sub(r"[^a-z0-9\s]", " ", text.lower())
+  return [word for word in text.split() if len(word) > 2]
+tokenized_docs = [preprocess(doc) for doc in documents]
+bm25 = BM25Okapi(tokenized_docs)
+G = nx.DiGraph(links)
+page_rank = nx.pagerank(G)
+page_rank_scores = np.array([page_rank.get(i, 0) for i in range(len(documents))])
+page_rank_scores /= page_rank_scores.max()
+def search(query, alpha=0.7, top_k=5):
+    query_tokens = preprocess(query)
+    relevance_scores = np.array(bm25.get_scores(query_tokens))
+    if relevance_scores.max() > 0:
+        relevance_scores /= relevance_scores.max()
+    final_scores = alpha * relevance_scores + (1 - alpha) * page_rank_scores
+    ranked_indices = np.argsort(-final_scores)[:top_k]
+    results = []
+    for rank, idx in enumerate(ranked_indices, 1):
+        results.append({
+            "Rank": rank,
+            "Doc_ID": idx,
+            "Relevance": round(float(relevance_scores[idx]), 3),
+            "PageRank": round(float(page_rank_scores[idx]), 3),
+            "Final_Score": round(float(final_scores[idx]), 3),
+            "Document": documents[idx]
+        })
+    return pd.DataFrame(results)
+if __name__ == "__main__" :
+  query = "search engine ranking algorithms" 
+  results = search (query, alpha=0.7)
+  print("\nQuery:", query)
+  print("\nRanked Results (Relevance + Importance):")
+  print(results)
