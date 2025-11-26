@@ -1,0 +1,30 @@
+import requests
+from bs4 import BeautifulSoup
+import csv
+
+
+response = requests.get('https://www.gatevidyalay.com/theory-of-automata-computation/')
+response.raise_for_status()
+soup = BeautifulSoup(response.text, 'html.parser')
+title = soup.find('h1',class_="entry-title").get_text(strip=True)
+print(title)
+
+
+
+
+
+content_div=soup.find('div',class_="entry-content")
+paragraph = [p.get_text(strip=True)for p in content_div.find_all("p")if p.get_text(strip=True)]
+print(paragraph)
+
+
+
+
+
+with open("automata_theory.csv","w",newline="",encoding="utf-8") as f:
+    writer=csv.writer(f)
+    writer.writerow(["Title","Paragraph"])
+    for para in paragraph:
+        writer.writerow([title,para])
+
+
