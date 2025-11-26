@@ -1,0 +1,30 @@
+from bs4 import BeautifulSoup
+html = """
+<html>
+ <head><title>Example Page</title></head>
+ <body>
+ <h1 class="title">Welcome</h1>
+ <p id="intro">This is an intro paragraph.</p>
+ <a href="https://example.com/page1" data-id="123">Page 1</a>
+ <ul id="items"><li>One</li><li>Two</li></ul>
+ </body>
+</html>
+"""
+soup = BeautifulSoup(html, "html.parser")
+
+
+print("Page title:", soup.title.string)
+
+
+print("\nH1 text:", soup.find("h1", class_="title").get_text(strip=True))
+
+
+print("\nIntro paragraph:", soup.find("p", id="intro").text)
+
+
+for a in soup.find_all("a"):
+    print("\nLink text:", a.get_text(), "| href:", a["href"], "| data-id:", a.get("data-id"))
+
+
+items = [li.get_text() for li in soup.select("#items li")]
+print("\nItems:", items)
